@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Safety Net: Deny all by default
+    match /{document=**} {
+       allow read, write: if false;
+    }
+
+    // --- Global Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // --- Validation Helpers ---
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidWeightEntry(data) {
+      return data.keys().hasAll(['weight', 'date', 'timestamp']) 
+        && data.weight is number 
+        && data.date is string && data.date.size() <= 20
+        && data.timestamp != null;
+    }
+
+    function isValidPersonalBest(data) {
+      return data.keys().hasAll(['exerciseName', 'bestWeight', 'bestReps', 'bestDate', 'lastWeight', 'lastReps', 'lastDate'])
+        && data.exerciseName is string
+        && data.bestWeight is number
+        && data.bestReps is number;
+    }
+
+    function isValidSessionSet(data) {
+      return data.keys().hasAll(['exerciseName', 'weight', 'reps', 'date', 'timestamp'])
+        && data.exerciseName is string
+        && data.weight is number
+        && data.reps is number;
+    }
+
+    function isValidUserProfile(data) {
+      return (data.displayName == null || (data.displayName is string && data.displayName.size() <= 100))
+        && (data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 500))
+        && (data.streakCount == null || data.streakCount is number)
+        && (data.lastWorkoutDate == null || data.lastWorkoutDate is string)
+        && (data.startDate == null || data.startDate is string);
+    }
+
+    // --- Admin & User Access ---
+
+    // Admin override (Specific UID provided by user)
+    match /{document=**} {
+      allow read, write: if isSignedIn() && (request.auth.uid == "27pxDuyWkAZWJ61pmuxvgtFk6Zm1" || request.auth.token.email == "d.castle@outlook.com");
+    }
+
+    // User Data Paths
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      match /workout/current {
+        allow read, write: if isOwner(userId);
+      }
+      
+      match /profile/settings {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId) && isValidUserProfile(incoming());
+      }
+      
+      match /pbs/{exName} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId) && isValidPersonalBest(incoming());
+      }
+      
+      match /weightEntries/{entryId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidWeightEntry(incoming());
+        allow update: if isOwner(userId) && isValidWeightEntry(incoming());
+        allow delete: if isOwner(userId);
+      }
+      
+      match /sets/{setId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId) && isValidSessionSet(incoming());
+      }
+    }
+  }
+}
