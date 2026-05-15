@@ -21,7 +21,8 @@ import {
   Plus,
   Trash2,
   ExternalLink,
-  Save
+  Save,
+  Layout
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -34,6 +35,7 @@ import {
   ResponsiveContainer,
   Cell
 } from 'recharts';
+import AnatomyChart from './components/AnatomyChart';
 import { 
   auth, 
   db, 
@@ -172,7 +174,7 @@ export default function App() {
   const [archivedWorkouts, setArchivedWorkouts] = useState<any[]>([]);
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
   const [showHistoryMenu, setShowHistoryMenu] = useState(false);
-  const [activeView, setActiveView] = useState<'workout' | 'library' | 'progress' | 'session' | 'profile'>('workout');
+  const [activeView, setActiveView] = useState<'workout' | 'library' | 'progress' | 'session' | 'profile' | 'anatomy'>('workout');
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [expandedDays, setExpandedDays] = useState<Record<number, boolean>>({});
   const [flashMessage, setFlashMessage] = useState<Record<string, string>>({});
@@ -893,6 +895,7 @@ export default function App() {
           { id: 'workout', label: 'Programming', icon: Dumbbell },
           { id: 'library', label: 'Library', icon: Search },
           { id: 'progress', label: 'Progress', icon: Scale },
+          { id: 'anatomy', label: 'Anatomy', icon: Layout },
           { id: 'session', label: 'Session', icon: History }
         ].map(nav => (
           <button
@@ -1212,6 +1215,36 @@ export default function App() {
                   </div>
                 ))}
               </div>
+            </motion.div>
+          ) : activeView === 'anatomy' ? (
+            <motion.div 
+              key="anatomy"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-8"
+            >
+              <div className="border-b border-white/5 pb-8">
+                <h3 className="text-xl font-light italic font-serif flex items-center gap-3 mb-1">
+                  Physiological Analysis
+                </h3>
+                <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold">Real-time muscle recruitment mapping</p>
+              </div>
+
+              <AnatomyChart sets={sessionSets} />
+              
+              {sessionSets.length === 0 && (
+                <div className="py-12 px-8 bg-white/[0.02] border border-white/5 rounded-sm text-center">
+                   <Activity className="w-8 h-8 text-white/10 mx-auto mb-4" />
+                   <p className="text-sm font-light text-white/40 italic font-serif">No active session data recorded to map physiological evolution.</p>
+                   <button 
+                     onClick={() => setActiveView('library')}
+                     className="mt-6 text-[10px] text-gym-accent font-bold uppercase tracking-widest border-b border-gym-accent/30 hover:border-gym-accent transition-all cursor-pointer"
+                   >
+                     Commence Recording in Library
+                   </button>
+                </div>
+              )}
             </motion.div>
           ) : activeView === 'session' ? (
             <motion.div 
